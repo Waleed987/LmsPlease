@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "NustFlow",
     "version": "1.0.0",
-    "description": "Provides automatic login and credential management for NUST LMS and Qalam portals with secure storage",
+    "description": "Save time with automatic login for NUST LMS and Qalam. Your credentials stay secure while you get instant access.",
     "permissions": [
         "storage",
         "activeTab"
