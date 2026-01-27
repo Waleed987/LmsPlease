@@ -11,7 +11,7 @@ initCgpaVisibility();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCgpaVisibility);
 }
-
+//Test
 // Listen for storage changes to update visibility in real-time
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.hideCgpa) {
