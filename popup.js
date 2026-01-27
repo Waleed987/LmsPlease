@@ -25,48 +25,110 @@ document.addEventListener('DOMContentLoaded', () => {
 saveBtn.addEventListener('click', async () => {
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
+    const useSameForQalam = qalamSameToggle.checked;
 
-    if (!username || !password) {
-        showStatus('Please enter both username and password', 'error');
+    // Check if at least one set of credentials is provided
+    const hasLmsCredentials = username && password;
+    const hasQalamCredentials = !useSameForQalam &&
+        qalamUsernameInput.value.trim() &&
+        qalamPasswordInput.value.trim();
+
+    if (!hasLmsCredentials && !hasQalamCredentials && !useSameForQalam) {
+        showStatus('Please enter at least LMS or Qalam credentials', 'error');
         return;
     }
 
-    const useSameForQalam = qalamSameToggle.checked;
-    let qalamUsername = username;
-    let qalamPassword = password;
+    // If using same for Qalam, LMS credentials are required
+    if (useSameForQalam && !hasLmsCredentials) {
+        showStatus('Please enter LMS credentials (used for both LMS and Qalam)', 'error');
+        return;
+    }
 
-    if (!useSameForQalam) {
-        qalamUsername = qalamUsernameInput.value.trim();
-        qalamPassword = qalamPasswordInput.value.trim();
-
-        if (!qalamUsername || !qalamPassword) {
-            showStatus('Please enter Qalam credentials or toggle "Same as LMS"', 'error');
-            return;
-        }
+    // If not using same for Qalam and Qalam fields are visible, require Qalam credentials
+    if (!useSameForQalam && !hasQalamCredentials) {
+        showStatus('Please enter Qalam credentials or toggle "Same as LMS"', 'error');
+        return;
     }
 
     try {
-        // Encrypt passwords
-        const encryptedLmsPassword = await encryption.encrypt(password);
-        const encryptedQalamPassword = await encryption.encrypt(qalamPassword);
+        const storageData = {};
+
+        // Save LMS credentials if provided
+        if (hasLmsCredentials) {
+            let encryptedLmsPassword;
+            if (password === '••••••••') {
+                // Keep existing password
+                const result = await chrome.storage.local.get('nustCredentials');
+                if (result.nustCredentials) {
+                    encryptedLmsPassword = result.nustCredentials.password;
+                }
+            } else {
+                encryptedLmsPassword = await encryption.encrypt(password);
+            }
+
+            if (encryptedLmsPassword) {
+                storageData.nustCredentials = {
+                    username: username,
+                    password: encryptedLmsPassword
+                };
+            }
+        }
+
+        // Save Qalam credentials
+        if (useSameForQalam && hasLmsCredentials) {
+            // Use LMS credentials for Qalam
+            let encryptedPassword;
+            if (password === '••••••••') {
+                // Keep existing password
+                const result = await chrome.storage.local.get('qalamCredentials');
+                if (result.qalamCredentials) {
+                    encryptedPassword = result.qalamCredentials.password;
+                }
+            } else {
+                encryptedPassword = await encryption.encrypt(password);
+            }
+
+            if (encryptedPassword) {
+                storageData.qalamCredentials = {
+                    username: username,
+                    password: encryptedPassword
+                };
+            }
+            storageData.qalamUseSame = true;
+        } else if (!useSameForQalam && hasQalamCredentials) {
+            // Use separate Qalam credentials
+            const qalamUsername = qalamUsernameInput.value.trim();
+            const qalamPassword = qalamPasswordInput.value.trim();
+
+            let encryptedQalamPassword;
+            if (qalamPassword === '••••••••') {
+                // Keep existing password
+                const result = await chrome.storage.local.get('qalamCredentials');
+                if (result.qalamCredentials) {
+                    encryptedQalamPassword = result.qalamCredentials.password;
+                }
+            } else {
+                encryptedQalamPassword = await encryption.encrypt(qalamPassword);
+            }
+
+            if (encryptedQalamPassword) {
+                storageData.qalamCredentials = {
+                    username: qalamUsername,
+                    password: encryptedQalamPassword
+                };
+            }
+            storageData.qalamUseSame = false;
+        }
 
         // Save to Chrome storage
-        chrome.storage.local.set({
-            nustCredentials: {
-                username: username,
-                password: encryptedLmsPassword
-            },
-            qalamCredentials: {
-                username: qalamUsername,
-                password: encryptedQalamPassword
-            },
-            qalamUseSame: useSameForQalam
-        }, () => {
+        chrome.storage.local.set(storageData, () => {
             showStatus('✓ Credentials saved securely!', 'success');
             // Mask passwords after saving
             setTimeout(() => {
-                passwordInput.value = '••••••••';
-                if (!useSameForQalam) {
+                if (hasLmsCredentials) {
+                    passwordInput.value = '••••••••';
+                }
+                if (hasQalamCredentials) {
                     qalamPasswordInput.value = '••••••••';
                 }
             }, 500);
