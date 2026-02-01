@@ -57,6 +57,9 @@ web-ext-artifacts/
 AUTO_REDIRECT.md
 DEBUGGING.md
 PERFORMANCE.md
+JUSTIFICATION.md
+CONTRIBUTING.md
+
 
 *.md
 !README.md
