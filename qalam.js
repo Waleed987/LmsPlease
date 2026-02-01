@@ -92,7 +92,7 @@ function fillAndSubmit(usernameField, passwordField, loginButton) {
                     setTimeout(() => {
                         console.log('NUST Qalam Auto-Login: Clicking login button');
                         loginButton.click();
-                    }, 500);
+                    }, 800);
                 } else {
                     console.log('NUST Qalam Auto-Login: Login button not found, credentials filled only');
                 }
