@@ -28,7 +28,9 @@
         {
             "matches": [
                 "https://lms.nust.edu.pk/portal/*",
-                "https://www.lms.nust.edu.pk/portal/*"
+                "https://www.lms.nust.edu.pk/portal/*",
+                "https://lms.nust.edu.pk/portal/login/index.php*",
+                "https://www.lms.nust.edu.pk/portal/login/index.php"
             ],
             "js": [
                 "content.js"

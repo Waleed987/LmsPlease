@@ -16,6 +16,38 @@ function initAutoLogin() {
 
     // Check login attempt count
     const attemptKey = 'lms_login_attempts';
+    const lastUrlKey = 'lms_last_url';
+    const timestampKey = 'lms_last_attempt_time';
+    const currentUrl = window.location.href;
+    const lastUrl = sessionStorage.getItem(lastUrlKey);
+    const lastAttemptTime = parseInt(sessionStorage.getItem(timestampKey) || '0');
+    const currentTime = Date.now();
+
+    // Reset counter if more than 5 minutes have passed since last attempt
+    // This handles session expiry scenarios
+    if (lastAttemptTime && (currentTime - lastAttemptTime) > 5 * 60 * 1000) {
+        console.log('NUST Auto-Login: More than 5 minutes since last attempt, resetting counter');
+        sessionStorage.setItem(attemptKey, '0');
+    }
+
+    // Reset counter if we're on a fresh login page (different URL or page reload after successful login)
+    // This handles session expiry scenarios where user is redirected back to login
+    const usernameField = findUsernameField();
+    const passwordField = findPasswordField();
+
+    if (usernameField && passwordField && !usernameField.value && !passwordField.value) {
+        // Empty fields indicate a fresh login page or session expiry
+        // Reset the counter to allow auto-login
+        if (lastUrl && lastUrl !== currentUrl) {
+            console.log('NUST Auto-Login: Detected new login page, resetting attempt counter');
+            sessionStorage.setItem(attemptKey, '0');
+        }
+    }
+
+    // Store current URL and timestamp for next check
+    sessionStorage.setItem(lastUrlKey, currentUrl);
+    sessionStorage.setItem(timestampKey, currentTime.toString());
+
     const attempts = parseInt(sessionStorage.getItem(attemptKey) || '0');
 
     if (attempts >= 2) {
@@ -94,7 +126,17 @@ function fillAndSubmit(usernameField, passwordField, loginButton) {
                         loginButton.click();
                     }, 500);
                 } else {
-                    console.log('NUST Auto-Login: Login button not found, credentials filled only');
+                    // Fallback: Try to submit the form directly
+                    console.log('NUST Auto-Login: Login button not found, attempting form submission');
+                    const form = usernameField.closest('form') || passwordField.closest('form');
+                    if (form) {
+                        setTimeout(() => {
+                            console.log('NUST Auto-Login: Submitting form directly');
+                            form.submit();
+                        }, 500);
+                    } else {
+                        console.log('NUST Auto-Login: No form found, credentials filled only');
+                    }
                 }
             } else {
                 console.log('NUST Auto-Login: Fields already filled, skipping');
@@ -156,21 +198,40 @@ function findLoginButton() {
     const selectors = [
         'button[type="submit"]',
         'input[type="submit"]',
+        'button[id*="login" i]',
+        'button[name*="login" i]',
+        'input[id*="login" i]',
+        'input[name*="login" i]',
         'button.btn-primary',
         'button.btn',
-        'a.btn'
+        'a.btn',
+        '#loginbtn',
+        'button[data-action="submit"]'
     ];
 
     let button = findFirstVisible(selectors);
 
     if (!button) {
-        // Fallback: find any button with "log" in its text
-        const buttons = document.querySelectorAll('button, input[type="submit"], a.btn');
+        // Fallback 1: find any button with "log" in its text
+        const buttons = document.querySelectorAll('button, input[type="submit"], a.btn, input[type="button"]');
         for (const btn of buttons) {
             const text = btn.textContent || btn.value || '';
             if (text.toLowerCase().includes('log') && isVisible(btn)) {
+                console.log('NUST Auto-Login: Found login button by text content:', text);
                 button = btn;
                 break;
+            }
+        }
+    }
+
+    // Fallback 2: Try to find the form and get its submit button
+    if (!button) {
+        const form = document.querySelector('form');
+        if (form) {
+            const formButton = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (formButton && isVisible(formButton)) {
+                console.log('NUST Auto-Login: Found login button within form');
+                button = formButton;
             }
         }
     }
