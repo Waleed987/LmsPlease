@@ -16,6 +16,38 @@ function initQalamAutoLogin() {
 
     // Check login attempt count
     const attemptKey = 'qalam_login_attempts';
+    const lastUrlKey = 'qalam_last_url';
+    const timestampKey = 'qalam_last_attempt_time';
+    const currentUrl = window.location.href;
+    const lastUrl = sessionStorage.getItem(lastUrlKey);
+    const lastAttemptTime = parseInt(sessionStorage.getItem(timestampKey) || '0');
+    const currentTime = Date.now();
+
+    // Reset counter if more than 5 minutes have passed since last attempt
+    // This handles session expiry scenarios
+    if (lastAttemptTime && (currentTime - lastAttemptTime) > 5 * 60 * 1000) {
+        console.log('NUST Qalam Auto-Login: More than 5 minutes since last attempt, resetting counter');
+        sessionStorage.setItem(attemptKey, '0');
+    }
+
+    // Reset counter if we're on a fresh login page (different URL or page reload after successful login)
+    // This handles session expiry scenarios where user is redirected back to login
+    const usernameField = findUsernameField();
+    const passwordField = findPasswordField();
+
+    if (usernameField && passwordField && !usernameField.value && !passwordField.value) {
+        // Empty fields indicate a fresh login page or session expiry
+        // Reset the counter to allow auto-login
+        if (lastUrl && lastUrl !== currentUrl) {
+            console.log('NUST Qalam Auto-Login: Detected new login page, resetting attempt counter');
+            sessionStorage.setItem(attemptKey, '0');
+        }
+    }
+
+    // Store current URL and timestamp for next check
+    sessionStorage.setItem(lastUrlKey, currentUrl);
+    sessionStorage.setItem(timestampKey, currentTime.toString());
+
     const attempts = parseInt(sessionStorage.getItem(attemptKey) || '0');
 
     if (attempts >= 2) {
@@ -92,9 +124,19 @@ function fillAndSubmit(usernameField, passwordField, loginButton) {
                     setTimeout(() => {
                         console.log('NUST Qalam Auto-Login: Clicking login button');
                         loginButton.click();
-                    }, 800);
+                    }, 1000); // Increased delay for Qalam
                 } else {
-                    console.log('NUST Qalam Auto-Login: Login button not found, credentials filled only');
+                    // Fallback: Try to submit the form directly
+                    console.log('NUST Qalam Auto-Login: Login button not found, attempting form submission');
+                    const form = usernameField.closest('form') || passwordField.closest('form');
+                    if (form) {
+                        setTimeout(() => {
+                            console.log('NUST Qalam Auto-Login: Submitting form directly');
+                            form.submit();
+                        }, 1000);
+                    } else {
+                        console.log('NUST Qalam Auto-Login: No form found, credentials filled only');
+                    }
                 }
             } else {
                 console.log('NUST Qalam Auto-Login: Fields already filled, skipping');
